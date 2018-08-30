@@ -13,7 +13,6 @@ Gamma = 2*pi*29.1*10^6;          %natural linewidth, unit:Hz
 k = 2*pi/(398.9*10^(-9));           %unit: m^(-1)
 TD = hbar*Gamma/(2*kb);           %unit: K
 gamma_onebodyL = 1;               %one-body loss rate
-P_onebodyL = @(t)exp(-gamma_onebodyL*t);
 
 T0 = 10*10^(-6);     %initial temperature, unit: K
 mbeta = m/(kb * T0);        %m * beta in Maxwell distribution, unit: kg/J
@@ -45,18 +44,18 @@ P_LZ = @(vr) exp(-2*pi*(hbar*Rabi_collision_square/(kb*TD))*(R_Condon^4/C3)/(3*v
 N_t = 100000;              %total number of steps
 time_step = 1*10^(-7);
 N_sim = 500;           %number of simulations
-Final_atom = 2*ones(1,N_sim);
+Final_atom = zeros(1,N_sim);
 Loss_time = zeros(1,N_sim);
-
-% Determination of initial position and velocity
-[rvec10,rvec20,v10,v20] = initial_r_v(w0,R_Condon,mbeta);
-
-% from lab frame to center of mass frame
-[Rc0,Dc0,vc0,v120] = LabF2CMSF(rvec10,rvec20,v10,v20);
 
 %% simulation
 tic
 for l = 1:N_sim
+    % Determination of initial position and velocity
+    [rvec10,rvec20,v10,v20] = initial_r_v(w0,R_Condon,mbeta);
+
+    % from lab frame to center of mass frame
+    [Rc0,Dc0,vc0,v120] = LabF2CMSF(rvec10,rvec20,v10,v20);
+    
     rvec1 = zeros(N_t,3);
     rvec2 = zeros(N_t,3);
     v1 = zeros(N_t,3);
@@ -122,11 +121,10 @@ for l = 1:N_sim
                         EK1(j+1) = Kinetic_Energy(v1(j+1,:),m,kb,TD);
                         EK2(j+1) = Kinetic_Energy(v2(j+1,:),m,kb,TD);
                         time_axis(j+1) = time_axis(j) + time_step;
-                        EK2(i) = Kinetic_Energy(v2(i,:),m,kb,TD);
                         P_oneL1 = P_onebodyL(time_axis(i));
                         P_oneL2 = P_onebodyL(time_axis(i));
                         Random_oneL1 = rand(1);
-                        Random_oneL2 = rand(1); 
+                        Random_oneL2 = rand(1);
                         if Random_oneL1 > P_oneL1 && Random_oneL2 <= P_oneL1
                             [rvec2,v2,time_axis,Final_atom(l)] = OnebodyLCal(rvec2,v2,i,N_t,time_axis,kb,TD);
                             break;
@@ -141,8 +139,8 @@ for l = 1:N_sim
                         end
                     end
                     i = j;
-                    Final_atom(l) = RELoss_judgement(EK1(i),EK2(i),rvec1(i,:),rvec2(i,:),U);
-                    if Final_atom(l) == 0                   
+                    Final_atom(l) = Loss_judgement(EK1(i),EK2(i),rvec1(i,:),rvec2(i,:),U);
+                    if Final_atom(l) == 0                 
                         break
                     end
                 end
@@ -151,8 +149,9 @@ for l = 1:N_sim
         i = i + 1;
     end
     if i>N_t
-        Final_atom(l) = RELoss_judgement(EK1(i-1),EK2(i-1),rvec1,rvec2,U);
+        Final_atom(l) = Loss_judgement(EK1(i-1),EK2(i-1),rvec1,rvec2,U);
     end
+    Loss_time(l) = i;
 end
 toc
 %% data processing

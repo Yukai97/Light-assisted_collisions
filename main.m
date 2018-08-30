@@ -2,7 +2,7 @@ clear;
 clc;
 
 %% parameters
-h = 6.63*10^(-34);       %Planck constant, unit: J*s
+h = 6.626*10^(-34);       %Planck constant, unit: J*s
 hbar = h/(2*pi);
 g = 9.8;    %gravitational accelaration, unit:m/s^2
 kb = 1.38*10^(-23);      %Boltzmann constant, unit: J/K
@@ -80,7 +80,7 @@ E2(1) = 1/2*m*dot(v20,v20) + U(rvec20);
 
 i = 2;
 while i<=N
-    [v1(i-1,:),time_space1] = Cooling(gamma_p,v1(i-1,:),vp);
+    [v1(i-1,:),time_space1] = Coo ling(gamma_p,v1(i-1,:),vp);
     [v2(i-1,:),time_space2] = Cooling(gamma_p,v2(i-1,:),vp);
     time_space = max([time_space1,time_space2]); 
     N_cool = floor(time_space/time_step);
