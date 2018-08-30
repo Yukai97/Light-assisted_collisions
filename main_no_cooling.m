@@ -93,14 +93,13 @@ for l = 1:N_sim
         Random_oneL1 = rand(1);
         Random_oneL2 = rand(1); 
         if Random_oneL1 > P_oneL1 && Random_oneL2 <= P_oneL1
-            Final_atom = 1;
-            
+            [rvec2,v2,time_axis,Final_atom(l)] = OnebodyLCal(rvec2,v2,i,N_t,time_axis,kb,TD);
             break;
         elseif Random_oneL1 <= P_oneL1 && Random_oneL2 > P_oneL2
-            Final_atom = 1;
-            continue;
+            [rvec1,v1,time_axis,Final_atom(l)] = OnebodyLCal(rvec1,v1,i,N_t,time_axis,kb,TD);
+            break;
         elseif Random_oneL1 > P_oneL1 && Random_oneL2 > P_oneL2
-            Final_atom = 0;
+            Final_atom(l) = 0;
             break;
         else
             if abs(norm(rvec1(i,:) - rvec2(i,:)) - R_Condon)<=Reaction_D
@@ -123,10 +122,27 @@ for l = 1:N_sim
                         EK1(j+1) = Kinetic_Energy(v1(j+1,:),m,kb,TD);
                         EK2(j+1) = Kinetic_Energy(v2(j+1,:),m,kb,TD);
                         time_axis(j+1) = time_axis(j) + time_step;
+                        EK2(i) = Kinetic_Energy(v2(i,:),m,kb,TD);
+                        P_oneL1 = P_onebodyL(time_axis(i));
+                        P_oneL2 = P_onebodyL(time_axis(i));
+                        Random_oneL1 = rand(1);
+                        Random_oneL2 = rand(1); 
+                        if Random_oneL1 > P_oneL1 && Random_oneL2 <= P_oneL1
+                            [rvec2,v2,time_axis,Final_atom(l)] = OnebodyLCal(rvec2,v2,i,N_t,time_axis,kb,TD);
+                            break;
+                        elseif Random_oneL1 <= P_oneL1 && Random_oneL2 > P_oneL2
+                            [rvec1,v1,time_axis,Final_atom(l)] = OnebodyLCal(rvec1,v1,i,N_t,time_axis,kb,TD);
+                            break;
+                        elseif Random_oneL1 > P_oneL1 && Random_oneL2 > P_oneL2
+                            Final_atom(l) = 0;
+                            break;
+                        else
+                            continue
+                        end
                     end
                     i = j;
                     Final_atom(l) = RELoss_judgement(EK1(i),EK2(i),rvec1(i,:),rvec2(i,:),U);
-                    if Final_atom(l) == 0 || Final_atom(l) == 1                   
+                    if Final_atom(l) == 0                   
                         break
                     end
                 end
@@ -137,7 +153,6 @@ for l = 1:N_sim
     if i>N_t
         Final_atom(l) = RELoss_judgement(EK1(i-1),EK2(i-1),rvec1,rvec2,U);
     end
-    Loss_time(l) = i;
 end
 toc
 %% data processing

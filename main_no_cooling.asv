@@ -92,32 +92,48 @@ for l = 1:N_sim
         P_oneL2 = P_onebodyL(time_axis(i));
         Random_oneL1 = rand(1);
         Random_oneL2 = rand(1); 
-        if Random_oneL1
-        if abs(norm(rvec1(i,:) - rvec2(i,:)) - R_Condon)<=Reaction_D
-            %transition judgement
-            vr = Relative_radial_speed(rvec1(i,:),rvec2(i,:),v1(i,:),v2(i,:));
-            Pe = 1 - P_LZ(vr);
-            Random_excitation = rand(1);
-            if Random_excitation <= Pe
-                %S+P calculation
-                for j = i:N_t-1
-                    P_survival = exp(-2*Gamma*time_step*(j-i)); %survival probability
-                    Random_survival = rand(1);
-                    if Random_survival > P_survival
+        if Random_oneL1 > P_oneL1 && Random_oneL2 <= P_oneL1
+            [rvec2,v2,time_axis,Final_atom(l)] = OnebodyLCal(rvec2,v2,i,N_t,time_axis,kb,TD);
+            break;
+        elseif Random_oneL1 <= P_oneL1 && Random_oneL2 > P_oneL2
+            [rvec1,v1,time_axis,Final_atom(l)] = OnebodyLCal(rvec1,v1,i,N_t,time_axis,kb,TD);
+            break;
+        elseif Random_oneL1 > P_oneL1 && Random_oneL2 > P_oneL2
+            Final_atom(l) = 0;
+            break;
+        else
+            if abs(norm(rvec1(i,:) - rvec2(i,:)) - R_Condon)<=Reaction_D
+                %transition judgement
+                vr = Relative_radial_speed(rvec1(i,:),rvec2(i,:),v1(i,:),v2(i,:));
+                Pe = 1 - P_LZ(vr);
+                Random_excitation = rand(1);
+                if Random_excitation <= Pe
+                    %S+P calculation
+                    for j = i:N_t-1
+                        P_survival = exp(-2*Gamma*time_step*(j-i)); %survival probability
+                        Random_survival = rand(1);
+                        if Random_survival > P_survival
+                            break
+                        end
+                        [Dc(j+1,:),v12(j+1,:)] = Velocity_Verlet(Fmol,mu,time_step,Dc(j,:),v12(j,:),kb,TD);
+                        Rc(j+1,:) = Rc(j,:) + vc(j,:)*time_step;
+                        vc(j+1,:) = vc(j,:);                                    %motion of center of mass
+                        [rvec1(j+1,:),rvec2(j+1,:),v1(j+1,:),v2(j+1,:)] = CMSF2LabF(Rc(j+1,:),Dc(j+1,:),vc(j+1,:),v12(j+1,:));
+                        EK1(j+1) = Kinetic_Energy(v1(j+1,:),m,kb,TD);
+                        EK2(j+1) = Kinetic_Energy(v2(j+1,:),m,kb,TD);
+                        time_axis(j+1) = time_axis(j) + time_step;
+                        EK2(i) = Kinetic_Energy(v2(i,:),m,kb,TD);
+                        P_oneL1 = P_onebodyL(time_axis(i));
+                        P_oneL2 = P_onebodyL(time_axis(i));
+                        Random_oneL1 = rand(1);
+                        Random_oneL2 = rand(1); 
+                        if 
+                    end
+                    i = j;
+                    Final_atom(l) = RELoss_judgement(EK1(i),EK2(i),rvec1(i,:),rvec2(i,:),U);
+                    if Final_atom(l) == 0 || Final_atom(l) == 1                   
                         break
                     end
-                    [Dc(j+1,:),v12(j+1,:)] = Velocity_Verlet(Fmol,mu,time_step,Dc(j,:),v12(j,:),kb,TD);
-                    Rc(j+1,:) = Rc(j,:) + vc(j,:)*time_step;
-                    vc(j+1,:) = vc(j,:);                                    %motion of center of mass
-                    [rvec1(j+1,:),rvec2(j+1,:),v1(j+1,:),v2(j+1,:)] = CMSF2LabF(Rc(j+1,:),Dc(j+1,:),vc(j+1,:),v12(j+1,:));
-                    EK1(j+1) = Kinetic_Energy(v1(j+1,:),m,kb,TD);
-                    EK2(j+1) = Kinetic_Energy(v2(j+1,:),m,kb,TD);
-                    time_axis(j+1) = time_axis(j) + time_step;
-                end
-                i = j;
-                Final_atom(l) = RELoss_judgement(EK1(i),EK2(i),rvec1(i,:),rvec2(i,:),U);
-                if Final_atom(l) == 0 || Final_atom(l) == 1                   
-                    break
                 end
             end
         end
@@ -126,7 +142,6 @@ for l = 1:N_sim
     if i>N_t
         Final_atom(l) = RELoss_judgement(EK1(i-1),EK2(i-1),rvec1,rvec2,U);
     end
-    Loss_time(l) = i;
 end
 toc
 %% data processing
