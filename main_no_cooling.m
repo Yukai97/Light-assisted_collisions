@@ -13,6 +13,7 @@ Gamma = 2*pi*29.1*10^6;          %natural linewidth, unit:Hz
 k = 2*pi/(398.9*10^(-9));           %unit: m^(-1)
 TD = hbar*Gamma/(2*kb);           %unit: K
 gamma_onebodyL = 1;               %one-body loss rate
+P_onebodyL = @(t)exp(-gamma_onebodyL*t);   %one-body loss
 
 T0 = 10*10^(-6);     %initial temperature, unit: K
 mbeta = m/(kb * T0);        %m * beta in Maxwell distribution, unit: kg/J
@@ -87,18 +88,20 @@ for l = 1:N_sim
         time_axis(i) = time_axis(i-1) + time_step;
         EK1(i) = Kinetic_Energy(v1(i,:),m,kb,TD);
         EK2(i) = Kinetic_Energy(v2(i,:),m,kb,TD);
-        P_oneL1 = P_onebodyL(time_axis(i));
-        P_oneL2 = P_onebodyL(time_axis(i));
+        P_oneL = P_onebodyL(time_axis(i));
         Random_oneL1 = rand(1);
-        Random_oneL2 = rand(1); 
-        if Random_oneL1 > P_oneL1 && Random_oneL2 <= P_oneL1
-            [rvec2,v2,time_axis,Final_atom(l)] = OnebodyLCal(rvec2,v2,i,N_t,time_axis,kb,TD);
+        Random_oneL2 = rand(1);      %one body loss
+        if Random_oneL1 > P_oneL && Random_oneL2 <= P_oneL
+            [rvec2,v2,time_axis,Final_atom(l)] = OnebodyLCal(P_onebodyL,F,U,m,time_step,rvec2,v2,i,N_t,time_axis,kb,TD);
+            FLAG1 = 1;    % 1st loss
             break;
-        elseif Random_oneL1 <= P_oneL1 && Random_oneL2 > P_oneL2
-            [rvec1,v1,time_axis,Final_atom(l)] = OnebodyLCal(rvec1,v1,i,N_t,time_axis,kb,TD);
+        elseif Random_oneL1 <= P_oneL && Random_oneL2 > P_oneL
+            [rvec1,v1,time_axis,Final_atom(l)] = OnebodyLCal(P_onebodyL,F,U,m,time_step,rvec1,v1,i,N_t,time_axis,kb,TD);
+            FLAG2 = 1;    %2nd loss
             break;
-        elseif Random_oneL1 > P_oneL1 && Random_oneL2 > P_oneL2
-            Final_atom(l) = 0;
+        elseif Random_oneL1 > P_oneL && Random_oneL2 > P_oneL
+            Final_atom(l) = 0;  
+            FLAGB = 1;
             break;
         else
             if abs(norm(rvec1(i,:) - rvec2(i,:)) - R_Condon)<=Reaction_D
@@ -112,6 +115,7 @@ for l = 1:N_sim
                         P_survival = exp(-2*Gamma*time_step*(j-i)); %survival probability
                         Random_survival = rand(1);
                         if Random_survival > P_survival
+                            Final_atom(l) = RELoss_judgement(EK1(j),EK2(j),rvec1(j,:),rvec2(j,:),U);
                             break
                         end
                         [Dc(j+1,:),v12(j+1,:)] = Velocity_Verlet(Fmol,mu,time_step,Dc(j,:),v12(j,:),kb,TD);
@@ -121,17 +125,16 @@ for l = 1:N_sim
                         EK1(j+1) = Kinetic_Energy(v1(j+1,:),m,kb,TD);
                         EK2(j+1) = Kinetic_Energy(v2(j+1,:),m,kb,TD);
                         time_axis(j+1) = time_axis(j) + time_step;
-                        P_oneL1 = P_onebodyL(time_axis(i));
-                        P_oneL2 = P_onebodyL(time_axis(i));
+                        P_oneL = P_onebodyL(time_axis(j+1));
                         Random_oneL1 = rand(1);
                         Random_oneL2 = rand(1);
-                        if Random_oneL1 > P_oneL1 && Random_oneL2 <= P_oneL1
-                            [rvec2,v2,time_axis,Final_atom(l)] = OnebodyLCal(rvec2,v2,i,N_t,time_axis,kb,TD);
+                        if Random_oneL1 > P_oneL && Random_oneL2 <= P_oneL
+                            [rvec2,v2,time_axis,Final_atom(l)] = OnebodyLCal(P_onebodyL,F,U,m,time_step,rvec2,v2,i,N_t,time_axis,kb,TD);
                             break;
-                        elseif Random_oneL1 <= P_oneL1 && Random_oneL2 > P_oneL2
-                            [rvec1,v1,time_axis,Final_atom(l)] = OnebodyLCal(rvec1,v1,i,N_t,time_axis,kb,TD);
+                        elseif Random_oneL1 <= P_oneL && Random_oneL2 > P_oneL
+                            [rvec1,v1,time_axis,Final_atom(l)] = OnebodyLCal(P_onebodyL,F,U,m,time_step,rvec1,v1,i,N_t,time_axis,kb,TD);
                             break;
-                        elseif Random_oneL1 > P_oneL1 && Random_oneL2 > P_oneL2
+                        elseif Random_oneL1 > P_oneL && Random_oneL2 > P_oneL
                             Final_atom(l) = 0;
                             break;
                         else
@@ -139,7 +142,6 @@ for l = 1:N_sim
                         end
                     end
                     i = j;
-                    Final_atom(l) = Loss_judgement(EK1(i),EK2(i),rvec1(i,:),rvec2(i,:),U);
                     if Final_atom(l) == 0                 
                         break
                     end
@@ -149,7 +151,7 @@ for l = 1:N_sim
         i = i + 1;
     end
     if i>N_t
-        Final_atom(l) = Loss_judgement(EK1(i-1),EK2(i-1),rvec1,rvec2,U);
+        Final_atom(l) = RELoss_judgement(EK1(i-1),EK2(i-1),rvec1,rvec2,U);
     end
     Loss_time(l) = i;
 end
